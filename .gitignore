@@ -1,0 +1,24 @@
+# Build
+*.exe
+*.obj
+*.o
+*.out
+build/
+bin/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+
+# UE
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# OS
+Thumbs.db
+.DS_Store
