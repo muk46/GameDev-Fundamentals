@@ -176,6 +176,49 @@ if (mag < 0.0001f) return {0, 0};
 
 float은 부동소수점이라 정확히 0이 아닐 수 있기 때문.
 
+## 실습: 종합 — 가장 가까운 적 추적 시스템
+
+→ [vector_chase.cpp](vector_chase.cpp)
+
+```
+플레이어 (2, 8)에서 가장 가까운 적을 찾아 이동.
+
+    적A (5,12)  거리 = 5
+         \
+    플레이어 (2,8)
+         /
+    적C (6,5)   거리 = 5     ← 둘 다 5! 먼저 나온 A 선택
+
+    적B (10,8)  거리 = 8
+```
+
+배열 + 반복문으로 여러 적 처리. 인덱스 저장 패턴 활용.
+
+### 여러 적 중 가장 가까운 적 찾기 패턴
+
+```cpp
+int closestIndex = 0;
+float minDistance = Magnitude(Subtract(Player, Enemies[0]));
+
+for (int i = 1; i < EnemyCount; i++)
+{
+    float distance = Magnitude(Subtract(Player, Enemies[i]));
+    if (distance < minDistance)
+    {
+        minDistance = distance;
+        closestIndex = i;  // 인덱스 저장이 핵심!
+    }
+}
+// Enemies[closestIndex]로 위치를 꺼낼 수 있음
+```
+
+### 거리가 같은 적이 여러 명일 때
+
+정답은 없고 게임 디자인에 따라 다르다:
+- 먼저 감지된 적 우선 (배열 순서)
+- 체력 낮은 적 우선
+- 가장 최근 공격한 적 유지
+
 ## 코드 리뷰에서 배운 점
 
 | 실수 | 수정 |
@@ -183,6 +226,8 @@ float은 부동소수점이라 정확히 0이 아닐 수 있기 때문.
 | `From - To` (뺄셈 순서 반대) | `To - From` (목표 - 출발) |
 | `int distance` (소수점 잘림) | `float distance` |
 | 삼항 연산자로 긴 출력문 | `if/else`로 가독성 개선 |
+| `std::min` 안에서 변수 선언 | 변수 먼저 선언 후 비교 |
+| 거리(float)를 위치(Vector2) 자리에 사용 | 인덱스 저장 후 `Enemies[index]`로 접근 |
 
 ## 복습 퀴즈 오답 노트
 
@@ -190,3 +235,4 @@ float은 부동소수점이라 정확히 0이 아닐 수 있기 때문.
 - 이동 시 반드시 정규화 먼저, 그 다음 속도 곱하기
 - 거리/크기 계산할 때 `int` 쓰지 말고 `float` 쓰기
 - 새 위치 = 현재 위치 + 이동량 (이동량만 구하고 끝내지 말 것)
+- 가장 가까운 적을 찾을 때 **거리값**이 아닌 **인덱스**를 저장해야 위치 접근 가능
