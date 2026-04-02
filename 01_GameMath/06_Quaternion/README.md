@@ -130,3 +130,96 @@ Quaternion.identity
 | 회전 없음 | `FQuat::Identity` | `Quaternion.identity` |
 
 실무에서는 **오일러로 입력받고, 쿼터니언으로 변환해서 사용**하는 패턴이 대부분.
+
+## Slerp (Spherical Linear Interpolation)
+
+두 회전 사이를 **부드럽게 이어주는 보간** 방법.
+
+```
+Lerp (선형 보간):     직선으로 이동 → 회전에 쓰면 속도가 불균일
+Slerp (구면 보간):    구 표면을 따라 이동 → 일정한 속도로 회전
+```
+
+### 왜 Lerp가 아니라 Slerp인가?
+
+쿼터니언은 4D 단위 구 위의 점. 직선(Lerp)으로 이으면 구 안쪽을 뚫고 지나간다.
+
+```
+Lerp:   A ────── B    (구 안쪽 직선, 속도 불균일)
+Slerp:  A ⌒⌒⌒⌒ B    (구 표면 호, 속도 균일)
+```
+
+### Slerp 공식
+
+```
+Slerp(A, B, t) = A * sin((1-t)θ) / sin(θ) + B * sin(tθ) / sin(θ)
+
+t = 0   → A (시작)
+t = 0.5 → A와 B의 중간
+t = 1   → B (끝)
+```
+
+공식은 외울 필요 없다. 엔진이 다 해준다. **개념만 이해하면 된다.**
+
+### 게임에서의 활용
+
+```
+1. 캐릭터 회전:  ↑ ↗ → (부드럽게 방향 전환)
+2. 카메라 전환:  컷신에서 카메라가 부드럽게 이동
+3. 애니메이션:   걷기 → 달리기 포즈 자연스럽게 전환
+```
+
+### Lerp vs Slerp
+
+| | Lerp | Slerp |
+|---|------|-------|
+| 경로 | 직선 | 구면 (호) |
+| 속도 | 불균일 | 균일 |
+| 정확도 | 낮음 | 높음 |
+| 성능 | 빠름 | 약간 느림 |
+| 용도 | 각도 차이 작을 때 | 정확한 회전 필요 시 |
+
+### 엔진에서의 Slerp
+
+**UE:**
+```cpp
+// 두 회전 사이 보간
+FQuat Result = FQuat::Slerp(StartQuat, EndQuat, Alpha);
+
+// 매 프레임 목표를 향해 부드럽게 회전
+FQuat NewRot = FQuat::Slerp(CurrentRot, TargetRot, 5.0f * DeltaTime);
+
+// 일정 속도로 회전
+FMath::QInterpTo(Current, Target, DeltaTime, Speed);
+```
+
+**Unity:**
+```csharp
+// 두 회전 사이 보간
+Quaternion result = Quaternion.Slerp(start, end, t);
+
+// 매 프레임 부드럽게 회전
+transform.rotation = Quaternion.Slerp(
+    transform.rotation, targetRot, 5f * Time.deltaTime);
+
+// 일정 속도로 회전
+Quaternion.RotateTowards(current, target, maxDegreesDelta);
+```
+
+## 회전 블렌딩
+
+여러 회전을 섞는 것. 애니메이션에서 핵심.
+
+```
+상체: 조준 방향 (↗)     하체: 이동 방향 (→)
+
+블렌딩 = 상체는 조준, 하체는 이동 방향으로 각각 Slerp
+```
+
+### 정리
+
+| 할 일 | UE | Unity |
+|-------|-----|-------|
+| Slerp 보간 | `FQuat::Slerp(A, B, t)` | `Quaternion.Slerp(A, B, t)` |
+| 속도 기반 회전 | `FMath::QInterpTo(...)` | `Quaternion.RotateTowards(...)` |
+| Lerp (근사) | `FQuat::FastLerp(A, B, t)` | `Quaternion.Lerp(A, B, t)` |
