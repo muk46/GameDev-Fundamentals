@@ -122,3 +122,125 @@ void Recursive()
     Recursive();  // 무한 재귀 → 스택 오버플로우!
 }
 ```
+
+---
+
+# 수업 7-2: new/delete와 메모리 누수
+
+> 날짜: 2026-04-07
+
+## new와 delete
+
+```cpp
+// 단일 객체
+Monster* mob = new Monster();    // 힙에 할당
+delete mob;                       // 해제
+
+// 배열
+int* scores = new int[100];      // 배열 할당
+delete[] scores;                  // 배열 해제 ([] 필수!)
+```
+
+### new가 하는 일
+
+```
+1. 힙에서 메모리 확보
+2. 생성자 호출
+```
+
+### delete가 하는 일
+
+```
+1. 소멸자 호출
+2. 메모리 반환
+```
+
+### 짝 맞추기 규칙
+
+```
+new       → delete
+new[]     → delete[]
+절대 섞지 말 것!
+```
+
+---
+
+## 메모리 누수 패턴 5가지
+
+### 1. 단순 해제 누락
+
+```cpp
+void SpawnEnemy()
+{
+    Monster* mob = new Monster();
+    // delete 깜빡함 → 누수!
+}
+```
+
+### 2. 조기 return으로 누락
+
+```cpp
+void LoadAsset(const char* path)
+{
+    Texture* tex = new Texture();
+    if (!FileExists(path))
+        return;         // delete 안 됨!
+    delete tex;
+}
+```
+
+### 3. 예외 발생으로 누락
+
+```cpp
+void Process()
+{
+    Data* data = new Data();
+    DoSomething();      // 예외 발생 시
+    delete data;        // 실행 안 됨 → 누수!
+}
+```
+
+### 4. 포인터 덮어쓰기
+
+```cpp
+Monster* mob = new Monster();    // 첫 번째
+mob = new Monster();             // 덮어씀 → 첫 번째 주소 상실 → 누수!
+delete mob;                      // 두 번째만 해제
+```
+
+### 5. 컨테이너 안의 포인터
+
+```cpp
+std::vector<Monster*> monsters;
+monsters.push_back(new Monster());
+monsters.push_back(new Monster());
+
+monsters.clear();  // 포인터만 지움, 힙 객체 누수!
+
+// 올바른 방법:
+for (Monster* m : monsters)
+    delete m;
+monsters.clear();
+```
+
+---
+
+## 게임에서의 증상
+
+```
+누수가 쌓이면:
+프레임 1:     [====      ] 500MB
+프레임 50000: [==========] 메모리 부족 → 크래시!
+
+"오래 하면 점점 느려지다가 튕김" = 메모리 누수 의심
+```
+
+## 올바른 습관
+
+```
+1. new 했으면 어디서 delete 할지 바로 결정
+2. 조기 return 전에 해제 확인
+3. 배열은 반드시 delete[]
+4. 포인터 덮어쓰기 전에 기존 것 delete
+5. → 스마트 포인터로 자동화 (다음 수업)
+```
