@@ -244,3 +244,82 @@ monsters.clear();
 4. 포인터 덮어쓰기 전에 기존 것 delete
 5. → 스마트 포인터로 자동화 (다음 수업)
 ```
+
+---
+
+# 수업 7-3: unique_ptr
+
+> 날짜: 2026-04-08
+
+## 스마트 포인터란?
+
+스코프({})를 벗어나면 자동 delete. new/delete 수동 관리의 누수 문제를 해결.
+
+## unique_ptr — 단독 소유
+
+```cpp
+#include <memory>
+
+// 기존 방식 (위험)
+Monster* mob = new Monster();
+delete mob;
+
+// unique_ptr (안전)
+std::unique_ptr<Monster> mob = std::make_unique<Monster>();
+// 스코프 끝나면 자동 delete
+```
+
+### 자동 해제 원리
+
+```
+unique_ptr은 스택에 있는 객체
+→ 스코프 끝나면 소멸자 호출
+→ 소멸자에서 내부 포인터를 delete
+```
+
+조기 return, 예외 발생 시에도 안전하게 해제됨.
+
+### 핵심 규칙: 복사 불가, 이동만 가능
+
+```cpp
+auto mob1 = std::make_unique<Monster>();
+
+auto mob2 = mob1;              // 컴파일 에러! (복사 불가)
+auto mob2 = std::move(mob1);   // OK! (소유권 이전)
+// mob1은 이제 nullptr
+```
+
+복사를 막는 이유: 두 포인터가 같은 객체를 소유하면 이중 해제 → 크래시
+
+### 주요 함수
+
+```cpp
+auto mob = std::make_unique<Monster>();
+
+mob.get()           // 원시 포인터 얻기 (소유권 유지)
+mob.release()       // 소유권 포기, 원시 포인터 반환
+mob.reset(new_ptr)  // 기존 해제 후 새 객체로 교체
+if (mob)            // nullptr 체크
+```
+
+### 함수에 전달
+
+```cpp
+// 소유권 넘기기
+void TakeOwnership(std::unique_ptr<Monster> mob);
+TakeOwnership(std::move(mob));
+
+// 빌려주기 (소유권 유지)
+void UseMonster(Monster* mob);
+UseMonster(mob.get());
+```
+
+### new/delete vs unique_ptr
+
+| | new/delete | unique_ptr |
+|---|-----------|------------|
+| 해제 | 수동 | 자동 |
+| 누수 위험 | 높음 | 없음 |
+| 복사 | 가능 (위험) | 불가 (안전) |
+| 소유권 | 불명확 | 명확 (단독) |
+| 성능 | 동일 | 동일 (오버헤드 0) |
