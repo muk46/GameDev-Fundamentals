@@ -323,3 +323,103 @@ UseMonster(mob.get());
 | 복사 | 가능 (위험) | 불가 (안전) |
 | 소유권 | 불명확 | 명확 (단독) |
 | 성능 | 동일 | 동일 (오버헤드 0) |
+
+---
+
+# 수업 7-4: shared_ptr, weak_ptr, 순환 참조
+
+> 날짜: 2026-04-09
+
+## shared_ptr — 공유 소유
+
+여러 곳에서 하나의 객체를 공유. 내부 참조 카운트로 관리.
+
+```cpp
+auto mob1 = std::make_shared<Monster>();  // 카운트: 1
+auto mob2 = mob1;                          // 카운트: 2
+auto mob3 = mob1;                          // 카운트: 3
+
+// mob3 소멸 → 2, mob2 소멸 → 1, mob1 소멸 → 0 → delete!
+```
+
+### unique_ptr vs shared_ptr
+
+| | unique_ptr | shared_ptr |
+|---|-----------|------------|
+| 소유자 | 1명 | 여러 명 |
+| 복사 | 불가 | 가능 |
+| 성능 | 오버헤드 0 | 참조 카운트 오버헤드 |
+| 원칙 | **기본 선택** | 공유 필요할 때만 |
+
+---
+
+## 순환 참조 문제
+
+```cpp
+class Player { std::shared_ptr<Monster> target; };
+class Monster { std::shared_ptr<Player> aggro; };
+
+player->target = monster;   // M 카운트: 2
+monster->aggro = player;    // P 카운트: 2
+
+// 함수 끝나도 카운트가 1로만 내려감 → 영원히 해제 안 됨!
+```
+
+```
+Player ──shared_ptr──→ Monster
+   ↑                      │
+   └──────shared_ptr──────┘
+서로 잡고 있으면 카운트가 0이 될 수 없다 → 메모리 누수
+```
+
+---
+
+## weak_ptr — 순환 참조 해결
+
+참조 카운트를 증가시키지 않는 포인터. 소유하지 않고 관찰만.
+
+```cpp
+class Player { std::shared_ptr<Monster> target; };   // 강한 참조
+class Monster { std::weak_ptr<Player> aggro; };       // 약한 참조
+
+// weak_ptr은 카운트 안 올림 → 순환 참조 해결!
+```
+
+### weak_ptr 사용법
+
+```cpp
+std::weak_ptr<Player> wp = sharedPlayer;
+
+// 직접 사용 불가, lock()으로 변환
+if (auto sp = wp.lock())    // 살아있으면 shared_ptr 반환
+{
+    sp->Attack();
+}
+else
+{
+    // 이미 해제됨
+}
+
+wp.expired()   // 객체가 삭제되었는지 확인
+```
+
+---
+
+## 스마트 포인터 총정리
+
+| | unique_ptr | shared_ptr | weak_ptr |
+|---|-----------|------------|----------|
+| 소유 | 단독 | 공유 | 소유 안 함 |
+| 복사 | 불가 | 가능 | 가능 |
+| 카운트 증가 | - | O | X |
+| 직접 사용 | O | O | X (lock 필요) |
+| 용도 | 기본 선택 | 공유 필요 시 | 순환 참조 방지 |
+
+### 선택 기준
+
+```
+혼자 소유?           → unique_ptr
+여러 곳에서 공유?    → shared_ptr
+참조만, 소유 안 함?  → weak_ptr
+순환 참조 위험?      → 한쪽을 weak_ptr로
+```
