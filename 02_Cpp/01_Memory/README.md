@@ -423,3 +423,80 @@ wp.expired()   // 객체가 삭제되었는지 확인
 참조만, 소유 안 함?  → weak_ptr
 순환 참조 위험?      → 한쪽을 weak_ptr로
 ```
+
+---
+
+# 수업 7-5: 실습 - 스마트 포인터로 게임 오브젝트 관리
+
+> 날짜: 2026-04-10 | 파일: smart_pointer_practice.cpp
+
+## 실습 목표
+
+세 가지 스마트 포인터를 모두 사용하는 미니 게임 월드 구현.
+
+```
+GameWorld
+├── shared_ptr<Player>              (월드가 소유)
+├── vector<shared_ptr<Monster>>     (여러 시스템이 공유)
+└── (Texture는 Monster들이 공유)
+
+Monster
+├── shared_ptr<Texture>             (텍스처 공유)
+└── weak_ptr<Player>                (타겟, 순환 참조 방지)
+```
+
+## 핵심 학습 포인트
+
+### 1. weak_ptr은 shared_ptr에서만 만들 수 있다
+
+처음엔 Player를 unique_ptr로 두려 했으나, Monster가 weak_ptr로 참조해야 하기 때문에 Player도 shared_ptr로 변경.
+
+```cpp
+// Monster 안
+std::weak_ptr<Player> m_Target;       // ← shared_ptr<Player>를 받아야 함
+
+void SetTarget(std::shared_ptr<Player> player)
+{
+    m_Target = player;   // shared → weak 자동 변환
+}
+```
+
+### 2. weak_ptr 사용은 lock()으로
+
+```cpp
+void Attack()
+{
+    if (auto sp = m_Target.lock())   // 살아있으면 shared_ptr 반환
+    {
+        std::cout << "[" << m_Name << "] " << sp->GetName() << " 공격!\n";
+        sp->TakeDamage(10);          // sp-> 빼먹으면 자기 자신을 때림
+    }
+    else
+    {
+        std::cout << "[" << m_Name << "] 타겟 없음\n";
+    }
+}
+```
+
+### 3. 자동 소멸 순서
+
+```
+=== 게임 월드 종료 ===
+[Monster] Goblin3 사망
+[Monster] Goblin2 사망
+[Monster] Goblin1 사망
+[Texture] goblin.png 해제   ← 마지막 몬스터 소멸 후 카운트 0
+[Player] 용사 사망
+```
+
+vector → 마지막 몬스터까지 소멸 → 텍스처 카운트 0 → 텍스처 해제 → Player 해제. **delete 한 번도 안 썼는데 정확하게 정리됨.**
+
+## 헷갈렸던 점 정리
+
+| 실수 | 원인 | 수정 |
+|------|------|------|
+| `std::weak_ptr<m_Target>` | `<>` 안에 변수명을 넣음 | `<Player>` (타입을 넣어야 함) |
+| `std::unique_ptr<Player> m_Player = ...` (Init 안에서) | 멤버를 함수 안에서 다시 선언 → 지역변수가 됨 | 그냥 `m_Player = ...` |
+| `std::make_shared<Monster>()` (텍스처 자리에) | 클래스 이름 헷갈림 | `std::make_shared<Texture>("...")` |
+| `TakeDamage(10)` | sp-> 빼먹어서 자기 자신을 때림 | `sp->TakeDamage(10)` |
+| `unique_ptr`을 SetTarget에 전달 | weak_ptr이 unique에서 못 만들어짐 | Player를 shared_ptr로 변경 |
