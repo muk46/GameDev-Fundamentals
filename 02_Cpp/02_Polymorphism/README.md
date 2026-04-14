@@ -158,3 +158,128 @@ delete mob;
 **Q1 착각**: "Dragon 객체를 new 했으니 Dragon::Attack 호출된다" → **틀림!**
 → virtual이 없으면 **포인터 타입** 기준. `Monster*` 니까 `Monster::Attack`.
 → virtual이 있어야 실제 객체(Dragon)를 본다.
+
+---
+
+# 수업 8-2: override와 final
+
+> 날짜: 2026-04-14
+
+## 왜 override가 필요한가?
+
+시그니처 다르면 override가 아니라 **오버로드**가 되는 함정.
+
+```cpp
+class Monster
+{
+public:
+    virtual void Attack(int d) { }
+};
+
+class Dragon : public Monster
+{
+public:
+    void Attack(float d) { }   // int가 아닌 float → 새 함수!
+};
+
+Monster* mob = new Dragon();
+mob->Attack(10);   // Monster::Attack 호출! (override 안 됨)
+```
+
+컴파일러는 에러로 보지 않고 정상 처리 → 버그 찾기 힘듦.
+
+---
+
+## override 키워드
+
+```cpp
+class Dragon : public Monster
+{
+public:
+    void Attack(float d) override { }   // 컴파일 에러!
+    // "override할 가상 함수를 찾을 수 없습니다"
+};
+```
+
+컴파일러가 부모에 같은 시그니처의 가상 함수가 있는지 검증한다.
+
+### override의 3가지 이점
+
+1. **오타 방지**: `Attak()` → 컴파일 에러
+2. **시그니처 불일치 방지**: `float` vs `int` → 컴파일 에러
+3. **가독성**: "이건 override다" 명시
+
+**규칙: 가상 함수를 재정의할 때는 항상 `override`.**
+
+---
+
+## final 키워드
+
+### 함수에 final → 더 이상 override 금지
+
+```cpp
+class Dragon : public Monster
+{
+public:
+    void Attack() override final { }
+};
+
+class FireDragon : public Dragon
+{
+public:
+    void Attack() override { }   // 컴파일 에러!
+};
+```
+
+### 클래스에 final → 상속 자체 금지
+
+```cpp
+class Dragon final : public Monster { };
+
+class FireDragon : public Dragon { };   // 컴파일 에러!
+```
+
+---
+
+## 언제 final을 쓰나?
+
+```
+1. 성능: 컴파일러가 가상 호출을 직접 호출로 최적화 (vtable 조회 스킵)
+2. 설계: "이 이상 확장 금지" 명시
+3. 안전: 실수로 상속/override되는 것 방지
+```
+
+---
+
+## 키워드 총정리
+
+| 키워드 | 위치 | 의미 |
+|--------|------|------|
+| `virtual` | 부모 함수 | 이 함수는 override 가능 |
+| `override` | 자식 함수 | 부모 가상 함수 재정의 (검증) |
+| `final` | 자식 함수 | 더 이상 override 금지 |
+| `final` | 클래스 | 상속 금지 |
+
+```
+virtual  → 문 열기
+override → "제대로 들어왔는지 확인해줘"
+final    → 문 닫기
+```
+
+---
+
+## 퀴즈 결과 (3문제)
+
+**2 / 3**
+
+| Q | 주제 | 결과 |
+|---|------|------|
+| Q1 | 시그니처 다른 "override"의 결과 | O |
+| Q2 | override를 쓰는 이유 | O |
+| Q3 | 클래스 final의 효과 | **X** |
+
+### 헷갈린 포인트
+
+**Q3**: 함수 final과 클래스 final 구분
+- 함수 final → **override 금지**
+- 클래스 final → **상속 금지**
