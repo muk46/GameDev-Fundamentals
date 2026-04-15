@@ -283,3 +283,166 @@ final    → 문 닫기
 **Q3**: 함수 final과 클래스 final 구분
 - 함수 final → **override 금지**
 - 클래스 final → **상속 금지**
+
+---
+
+# 수업 8-3: 순수 가상 함수와 추상 클래스
+
+> 날짜: 2026-04-15
+
+## 문제 상황
+
+게임에서 모든 무기는 `Fire()`를 반드시 구현해야 한다. virtual만 쓰면 자식이 까먹어도 컴파일됨 → 런타임에 부모 빈 함수 호출되는 버그.
+
+---
+
+## 순수 가상 함수 (Pure Virtual)
+
+```cpp
+class Weapon
+{
+public:
+    virtual void Fire() = 0;   // "= 0" 이 순수 가상
+};
+```
+
+의미: **"구현 없음. 자식이 반드시 override 해야 함."**
+
+---
+
+## 추상 클래스 (Abstract Class)
+
+순수 가상 함수를 **하나라도** 가진 클래스 = 추상 클래스.
+
+```cpp
+Weapon w;                  // 컴파일 에러! 인스턴스화 불가
+Weapon* w = new Sword();   // OK (Sword가 Fire 구현했다면)
+```
+
+### 자식이 override 안 하면?
+
+```cpp
+class Sword : public Weapon { };   // Fire() 구현 안 함
+Sword s;   // 컴파일 에러! Sword도 여전히 추상 클래스
+```
+
+→ 순수 가상을 override 안 한 자식도 추상 클래스가 된다.
+
+---
+
+## 올바른 사용
+
+```cpp
+class Weapon
+{
+public:
+    virtual ~Weapon() = default;
+    virtual void Fire() = 0;
+    virtual int GetDamage() const = 0;
+};
+
+class Sword : public Weapon
+{
+public:
+    void Fire() override { std::cout << "검 휘두르기\n"; }
+    int GetDamage() const override { return 20; }
+};
+
+std::vector<Weapon*> weapons;
+weapons.push_back(new Sword());
+weapons.push_back(new Bow());
+
+for (auto* w : weapons)
+    w->Fire();   // 다형성: 각자의 구현 호출
+```
+
+---
+
+## 인터페이스 패턴
+
+모든 함수가 순수 가상 → 인터페이스 역할.
+
+```cpp
+class IDamageable
+{
+public:
+    virtual ~IDamageable() = default;
+    virtual void TakeDamage(int amount) = 0;
+    virtual bool IsDead() const = 0;
+};
+
+class Player : public IDamageable { /* 구현 */ };
+class Monster : public IDamageable { /* 구현 */ };
+```
+
+"피해 받을 수 있는 모든 것"을 하나로 다룰 수 있다.
+
+---
+
+## 순수 가상도 구현 가능 (덜 알려진 기능)
+
+```cpp
+class Weapon
+{
+public:
+    virtual void Fire() = 0;
+};
+
+void Weapon::Fire() { std::cout << "기본 발사음\n"; }
+
+class Sword : public Weapon
+{
+public:
+    void Fire() override
+    {
+        Weapon::Fire();   // 부모 기본 동작 호출
+        std::cout << "검 휘두르기\n";
+    }
+};
+```
+
+"반드시 override 해라. 하지만 기본 동작은 제공해줄게."
+
+---
+
+## 정리
+
+| 구분 | virtual | 순수 가상 (= 0) |
+|------|---------|-----------------|
+| 구현 제공 | 필수 | 선택 |
+| 자식 override | 선택 | **강제** |
+| 인스턴스화 | 가능 | **불가** |
+| 용도 | 재정의 허용 | 인터페이스 강제 |
+
+```
+virtual  → "override 해도 된다"
+= 0      → "override 해야만 한다"
+```
+
+---
+
+## 퀴즈 결과 (3문제)
+
+**1 / 3**
+
+| Q | 주제 | 결과 |
+|---|------|------|
+| Q1 | 추상 클래스 인스턴스화 시도 | O |
+| Q2 | 추상 클래스 판별 (4개 중) | **X** |
+| Q3 | 순수 가상 vs 일반 가상 선택 | **X** |
+
+### 헷갈린 포인트
+
+**Q2 착각**: A, D를 추상 클래스로 선택 → 완전히 반대
+- 추상 클래스 = 순수 가상 함수(`= 0`)를 **하나라도** 가진 클래스
+- A: `virtual void F() { }` → 구현 있음 → 추상 아님
+- B: `virtual void F() = 0;` → 순수 가상 → **추상**
+- C: B 상속 후 F() override 안 함 → 순수 가상 남아있음 → **추상**
+- D: F() override로 구현 제공 → 추상 아님
+- **핵심**: 자식이 override 안 하면 자식도 여전히 추상 클래스
+
+**Q3 착각**: "강제 구현"과 "기본 동작"의 선언을 반대로 선택
+- 반드시 구현 강제 → **`= 0`** (순수 가상)
+- 기본 동작 제공, override는 선택 → **일반 virtual**
+- `= 0`의 의미를 재확인: "구현 없음, 자식이 만들어야 함"
+- 기본 동작을 주고 싶으면 `= 0`을 쓰면 안 됨
